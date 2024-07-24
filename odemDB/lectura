@@ -1,0 +1,5 @@
+OPEN CHEST myData;
+
+BLOCK INVENTORY table1(34,15, "sdf" , "af");
+
+OPEN CHEST (myData) INVENTORY;

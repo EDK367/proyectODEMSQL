@@ -1,0 +1,329 @@
+package sintactico;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java_cup.runtime.Symbol;
+import controlSemantico.*;
+import java.util.Iterator;
+import java.util.Arrays;
+import java.util.Map;
+
+parser code
+{:
+    private static int keyID = -1;
+        private static int keyDataBase;
+        private static int keyTable;
+        private static int keyData;
+        private int keyTableDatos;
+        private String keyNameTable;
+        private static boolean keyDataIsNull;
+        private static HashMap<Integer, List<Object>> map = new HashMap<>();
+        private static HashMap<String, List<Object>> mapDatas = new HashMap<>();
+        private  HashMap<String, List<Object>> mapShow = new HashMap<>();
+        private List<Object> listValores = new ArrayList<>();
+        private List<Object> listTablas = new ArrayList<>();
+        private static List<Integer> listData = new ArrayList<>();
+        public Symbol s;
+
+        public HashMap<Integer, List<Object>> getMap() {
+            return map;
+        }
+        public HashMap<String, List<Object>> getMapDatas(){
+                return mapDatas;
+            }
+        public HashMap<String, List<Object>> getMapShow(){
+            return mapShow;
+        }
+        public void syntax_error(Symbol s){
+            this.s = s;
+        }
+        public Symbol getS(){
+            return this.s;
+        }
+
+        // Funcion para generar una nueva key para el HashMap
+        private int keyMap(){
+            return ++keyID;
+        }
+
+        //Funcion para buscar la tabla y usarla en las listas
+        public void tableExist(Object nameTable) throws SemanticErrorException {
+            for (Map.Entry<Integer, List<Object>> entry : map.entrySet()) {
+                List<Object> list = entry.getValue();
+                if (list.size() == 5 && "Tabla".equals(list.get(1))) {
+                    if (nameTable.equals(list.get(2))
+                               && (list.get(4) instanceof Integer &&  (Integer) list.get(4) == keyDataBase)) {
+                        listTablas.add(list);
+                        keyNameTable = (String) list.get(2);
+                        keyTableDatos = (int) list.get(0);
+                        break;
+                    }
+                }
+            }
+            if(listTablas.isEmpty()){
+                throw new SemanticErrorException("No existe en la base de datos la siguiente tabla: " + nameTable);
+            }
+        }
+        //Funcion para ingresar los datos en un arrayList para almacenar cada uno de los distintos valores
+        public void ingresoDatos(String valor){
+            char tipo = valor.charAt(0);
+            if (Character.isDigit(tipo)) {
+                listValores.add(List.of("int", valor));
+            }
+            switch (tipo) {
+                case '"' -> listValores.add(List.of("string", valor));
+                case '\'' -> listValores.add(List.of("char", valor));
+            }
+        }
+        //Funcion para compara los datos de la tabla
+        public void estrucData() throws SemanticErrorException {
+            List<Object> listDatos = new ArrayList<>();
+            for (Map.Entry<Integer, List<Object>> entry : map.entrySet()) {
+                List<Object> list = entry.getValue();
+                if (list.size() == 7 && "Dato".equals(list.get(1))) {
+                    if (list.get(5) instanceof Integer && (Integer) list.get(5) == keyTableDatos) {
+                        listDatos.add(list.get(3));
+                    }
+                }
+            }
+            if (listDatos.size() == listValores.size()) {
+                int contador = 0;
+                for (int i = 0; i < listValores.size(); i++) {
+                    List<Object> sublista = (List<Object>) listValores.get(i);
+                    Object primerElemento = sublista.get(0);
+                    Object elementoReferencia = listDatos.get(i);
+                    if (primerElemento.equals(elementoReferencia)) {
+                        contador++;
+                    } else {
+                        throw new SemanticErrorException("Existe un error en el ingreso correcto de "
+                                   + "datos en la tabla: " + keyNameTable);
+                    }
+                }
+                if (contador == listDatos.size()) {
+
+
+                    }
+
+            } else {
+                listDatos.clear();
+                listValores.clear();
+                throw new SemanticErrorException("Se ha ingresado mas o menos valores de los que contiene la tabla " + keyNameTable);
+            }
+        }
+
+        //Funcion para hacer el show de las tablas
+        public void showTables(Object nameDataBase, String show) throws SemanticErrorException{
+            if(show.equals("Tablas")){
+                List<Object> listFromBase = new ArrayList<>();
+                dataBaseInUse(nameDataBase);
+                for (Map.Entry<Integer, List<Object>> entry : map.entrySet()) {
+                    List<Object> list = entry.getValue();
+                    if(list.size() == 5 && "Tabla".equals(list.get(1))){
+                         if((list.get(4) instanceof Integer) && (Integer) list.get(4) == keyDataBase){
+                            listFromBase.add(list);
+                        }
+                    }
+                }
+                mapShow.put((String) nameDataBase, listFromBase);
+            } else if(show.equals("Datos")){
+                List<Object> listShow = new ArrayList<>();
+                Object llave;
+                for (Map.Entry<String, List<Object>> entry : mapDatas.entrySet()) {
+                    if(nameDataBase.equals(entry.getKey())){
+                        listShow = entry.getValue();
+                        llave = entry.getKey();
+                        System.out.println(listShow);
+                    }
+
+                }
+            }
+    }
+
+        //Funcion para valor nulo
+        public void isDataNull(boolean isNull){
+            if(isNull){
+                keyDataIsNull = true;
+            }else{
+                keyDataIsNull = false;
+            }
+        }
+        //Funciones para crear los List necesarios con los datos para poder crear el semantico
+        private List<Object> dataBases(Object name){
+            List<Object> nameBase = new ArrayList<>();
+            nameBase.add("Base de Datos");
+            nameBase.add(name);
+            return nameBase;
+        }
+        private List<Object> tables(Object name, int ID){
+            List<Object> nameTable = new ArrayList<>();
+            nameTable.add(ID);
+            nameTable.add("Tabla");
+            nameTable.add(name);
+            nameTable.add(listData.size());
+            nameTable.add(keyDataBase);
+            return nameTable;
+        }
+        private List<Object> datas(Object nameTable, int ID, Object tipoDato){
+            List<Object> nameData  = new ArrayList<>();
+            listData.add(ID);
+            nameData.add(ID);
+            nameData.add("Dato");
+            nameData.add(nameTable);
+            nameData.add(tipoDato);
+            nameData.add(keyDataIsNull);
+            nameData.add(keyTable);
+            nameData.add(keyDataBase);
+            return nameData;
+        }
+
+        //funcion para insertar la base de datos en el HashMap
+        public void putBase(Object name) throws SemanticErrorException {
+            keyDataBase = keyMap();
+            if(!buscador("Base de Datos", (String) name, keyDataBase)){
+                map.put(keyDataBase, dataBases(name));
+            }else{
+                keyID--;
+                throw new SemanticErrorException("Ya existe una base de Datos con el mismo nombre: " + name);
+            }
+        }
+        //funcion para insertar tables en el HasMap
+        public void putTable(Object nameTable) throws SemanticErrorException{
+            keyTable = keyMap();
+            map.put(keyTable, tables(nameTable, keyTable));
+            for (int i = 0; i < listData.size(); i++) {
+                int indice = listData.get(i);
+                List<Object> newList = map.get(indice);
+                newList.set(5, keyTable);
+            }
+            listData.clear();
+            if (buscador("Tabla",(String) nameTable, keyTable)) {
+                int retroceso = 1;
+                map.remove(keyTable);
+                Iterator<Map.Entry<Integer, List<Object>>> iterator = map.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<Integer, List<Object>> entry = iterator.next();
+                    List<Object> list = entry.getValue();
+                    if ("Dato".equals(list.get(1))
+                        && (list.get(5) instanceof Integer && (Integer) list.get(5) == keyTable)
+                        && (list.get(6) instanceof Integer && (Integer) list.get(6) == keyDataBase)) {
+                        iterator.remove();
+                        retroceso++;
+                           }
+                       }
+                keyID -= retroceso;
+                throw new SemanticErrorException("Ya existe una tabla con el mismo nombre: " + nameTable);
+           }
+        }
+        //funcion para insertar datos de las tablas en el HasMap
+        public void putData(Object nameData, Object tipoData){
+            keyData = keyMap();
+            map.put(keyData, datas(nameData, keyData, tipoData));
+        }
+        //funcion para usar la dataBase
+        public void dataBaseInUse(Object nameDataBase) throws SemanticErrorException {
+            boolean baseDeDatosEncontrada = false;
+            if(!map.isEmpty()){
+                for (Map.Entry<Integer, List<Object>> entry : map.entrySet()) {
+                    List<Object> list = entry.getValue();
+                    if (list.size() == 2) {
+                        if (nameDataBase.equals(list.get(1))) {
+                            keyDataBase = entry.getKey();
+                            baseDeDatosEncontrada = true;
+                            break;
+                        }
+                    }
+                }
+                if (!baseDeDatosEncontrada) {
+                    throw new SemanticErrorException("No existe esta base de Datos: " + nameDataBase);
+                }
+            }else{
+                listData.clear();
+                throw new SemanticErrorException("No existe esta base de Datos: " + nameDataBase);
+            }
+        }
+        //Funcion para buscar si existe
+        private boolean buscador(String tipo, String name, int key){
+            if(tipo.equals("Tabla")){
+                for (Map.Entry<Integer, List<Object>> entry : map.entrySet()) {
+                    List<Object> list = entry.getValue();
+                    if(list.size() == 5 && tipo.equals(list.get(1))){
+                        if(name.equals(list.get(2)) && (list.get(0) instanceof Integer && (Integer) list.get(0) != key)
+                                       && (list.get(4) instanceof Integer && (Integer) list.get(4) == keyDataBase)){
+                            return true;
+                        }
+                    }
+                }
+            }else if(tipo.equals("Dato")){
+            }else if(tipo.equals("Base de Datos")){
+                for (Map.Entry<Integer, List<Object>> entry : map.entrySet()) {
+                    List<Object> list = entry.getValue();
+                    if (list.size() == 2 && tipo.equals(list.get(0))) {
+                        if(name.equals(list.get(1))){
+                            int keyData = entry.getKey();
+                            if(keyData != key){
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+:};
+
+// Definición de los terminales
+terminal CREATE, DATABASE, TABLE, SELECT, INSERT, UPDATE, DELETE, WHERE;
+terminal GROUP, FROM, NOT, ORDER, REFERENCES, SHOW;
+terminal NULL, NONULL, AND, OR, NOIGUAL, IGUAL, ISCHAR, ISSTRING, BOOLEANO;
+terminal PRIMARYKEY, SECONDKEY, NONULO, LPAREN, RPAREN, CONCAT, PCOMA;
+terminal CHAR, STRING, DIGIT, INT, IDENTIFICADOR, COMENTARIO, ERROR;
+
+// Definición de los no terminales
+non terminal INICIO, INSERCION, INSERCION2, VISTA, LISTA_DATOS, LISTA_DATOS2, DATOS, SENTENCIA;
+non terminal TABLE_NAME, DECLARACION, DECLARACION2, NULO, KEY;
+
+start with INICIO;
+
+INICIO ::= CREATE DATABASE IDENTIFICADOR:name PCOMA {: parser.putBase(name); :}
+         | SHOW DATABASE IDENTIFICADOR:name PCOMA   {: parser.dataBaseInUse(name); :}
+         | SHOW DATABASE LPAREN IDENTIFICADOR:nameDataBase RPAREN TABLE PCOMA {: parser.showTables(nameDataBase, "Tablas"); :}
+         | INICIO SENTENCIA;
+
+SENTENCIA ::= CREATE TABLE IDENTIFICADOR:nameTable LPAREN DECLARACION KEY RPAREN PCOMA {: parser.putTable(nameTable); :}
+            | INSERCION
+            | VISTA;
+
+DECLARACION ::= IDENTIFICADOR:nameData STRING:t NULO {: parser.putData(nameData, t); :}
+              | IDENTIFICADOR:nameData INT:t NULO {: parser.putData(nameData, t); :}
+              | IDENTIFICADOR:nameData CHAR:t NULO {: parser.putData(nameData, t); :}
+              | DECLARACION DECLARACION2;
+
+DECLARACION2 ::= IDENTIFICADOR:nameData STRING:t NULO {: parser.putData(nameData, t); :}
+               | IDENTIFICADOR:nameData INT:t NULO {: parser.putData(nameData, t); :}
+               | IDENTIFICADOR:nameData CHAR:t NULO {: parser.putData(nameData, t); :};
+
+//aca se verifica si el dato es nulo o no
+NULO ::= NULL {: boolean isNull = false; parser.isDataNull(isNull); :}
+       | NONULL {: boolean isNoNull = true; parser.isDataNull(isNoNull); :};
+
+//aca se verifica cual es la llave primaria y las llaves secundarias
+KEY ::= PRIMARYKEY LPAREN IDENTIFICADOR RPAREN
+      | KEY SECONDKEY LPAREN IDENTIFICADOR RPAREN REFERENCES LPAREN IDENTIFICADOR RPAREN FROM IDENTIFICADOR;
+
+//para poder realizar la insercion de datos
+INSERCION ::= INSERT TABLE TABLE_NAME LPAREN LISTA_DATOS RPAREN PCOMA;
+
+TABLE_NAME ::= IDENTIFICADOR:nameTable {: parser.tableExist(nameTable); :};
+
+LISTA_DATOS ::= DATOS LISTA_DATOS2;
+
+LISTA_DATOS2 ::= CONCAT DATOS LISTA_DATOS2
+               | {: parser.estrucData(); :};
+
+DATOS ::= DIGIT:valor {: parser.ingresoDatos((String) valor); :}
+        | ISCHAR:valor {: parser.ingresoDatos((String) valor); :}
+        | ISSTRING:valor {: parser.ingresoDatos((String) valor); :};
+
+VISTA ::= SHOW DATABASE LPAREN IDENTIFICADOR:nameDataBase RPAREN TABLE PCOMA {: parser.showTables(nameDataBase, "Tablas"); :}
+        | SHOW TABLE LPAREN IDENTIFICADOR:nameDataBase RPAREN PCOMA {: parser.showTables(nameDataBase, "Datos"); :};
